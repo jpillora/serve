@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -60,9 +60,10 @@ var hasIndex = false
 func main() {
 	he := flag.Bool("help", false, "")
 	h := flag.Bool("h", false, "")
+
 	flag.Parse()
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, help)
+		fmt.Fprint(os.Stderr, help)
 		os.Exit(1)
 	}
 	if *he || *h {
@@ -102,11 +103,10 @@ func main() {
 		}()
 	}
 
-	fmt.Println(
-		c("serving ", "grey") +
-			c(shorten(dir), "cyan") +
-			c(" on port ", "grey") +
-			c(port, "cyan"))
+	fmt.Println(c("serving ", "grey") +
+		c(shorten(dir), "cyan") +
+		c(" on port ", "grey") +
+		c(port, "cyan"))
 	log.Fatal(http.ListenAndServe(addr, http.HandlerFunc(handle)))
 }
 
@@ -115,10 +115,11 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
 	//reporting
-	stats := &struct{ sent, code int }{}
-	reply := func(code int, msg string) {
-		w.WriteHeader(code)
-		stats.code = code
+	var sf *spyFile
+	var code int
+	reply := func(c int, msg string) {
+		w.WriteHeader(c)
+		code = c
 		if msg != "" {
 			w.Write([]byte(msg))
 		}
@@ -127,15 +128,15 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		t := time.Now().Sub(t0)
 		size := ""
-		if stats.sent != 0 {
-			size = " " + tobyte(stats.sent)
+		if sf != nil {
+			size = " " + tobyte(sf.read)
 		}
-		fmt.Println(
-			c(r.Method+" "+r.URL.Path, "grey") +
-				" " + sc(stats.code) + " " +
-				c(fmt.Sprintf("%s%s", t, size), "grey"))
+		fmt.Println(c(r.Method+" "+r.URL.Path, "grey") +
+			" " + fmtcode(code) + " " +
+			c(fmtduration(t)+size, "grey"))
 	}()
 
+	//requested file
 	p := filepath.Join(dir, path)
 
 	//check file or dir
@@ -179,15 +180,17 @@ func handle(w http.ResponseWriter, r *http.Request) {
 			if f.IsDir() {
 				n += "/"
 			}
-			s := fmt.Sprintf("%s\n", n)
+			s := fmt.Sprintf("<a href=\"%s\">\n\t%s\n</a><br>\n", filepath.Join(path, n), n)
 			buff.WriteString(s)
 		}
+		w.Header().Set("Content-Type", "text/html")
 		reply(200, buff.String())
 		return
 	}
 
 	//check file again
-	if _, err := os.Stat(p); err != nil {
+	info, err := os.Stat(p)
+	if err != nil {
 		reply(404, "Not found")
 		return
 	}
@@ -195,27 +198,38 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	//stream file
 	f, err := os.Open(p)
 	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
+		reply(500, err.Error())
 		return
 	}
 
-	reply(200, "")
-	n, _ := io.Copy(w, f)
-	stats.sent = int(n)
+	//http.ServeContent handles caching and range requests
+	code = 200
+	sf = &spyFile{File: f}
+	http.ServeContent(w, r, info.Name(), info.ModTime(), sf)
+}
+
+type spyFile struct {
+	*os.File
+	read int64
+}
+
+func (s *spyFile) Read(p []byte) (int, error) {
+	n, err := s.File.Read(p)
+	s.read += int64(n)
+	return n, err
 }
 
 var scale = []string{"b", "kb", "mb", "gb"}
 
-func tobyte(n int) string {
+func tobyte(n int64) string {
 	for _, s := range scale {
-		if n > 1000 {
-			n = n / 1000
+		if n > 1024 {
+			n = n / 1024
 		} else {
-			return strconv.Itoa(n) + s
+			return strconv.FormatInt(n, 10) + s
 		}
 	}
-	return strconv.Itoa(n)
+	return strconv.FormatInt(n, 10)
 }
 
 func shorten(s string) string {
@@ -246,7 +260,7 @@ func c(s string, c string) string {
 	return string(ansi.Set(color)) + s + string(ansi.Set(ansi.Reset))
 }
 
-func sc(status int) string {
+func fmtcode(status int) string {
 	s := strconv.Itoa(status)
 	switch status / 100 {
 	case 2:
@@ -261,19 +275,8 @@ func sc(status int) string {
 	return s
 }
 
-// min := s
-// for _, e := range os.Environ() {
-// 	kv := strings.SplitN(e, "=", 2)
-// 	if len(kv) != 2 {
-// 		continue
-// 	}
-// 	k := kv[0]
-// 	v := kv[1]
-// 	if strings.HasPrefix(s, v) {
-// 		m := "$" + k + strings.TrimPrefix(s, v)
-// 		if len(m) < len(min) {
-// 			min = m
-// 		}
-// 	}
-// }
-// return min
+var fmtdurationRe = regexp.MustCompile(`\.\d+`)
+
+func fmtduration(t time.Duration) string {
+	return fmtdurationRe.ReplaceAllString(t.String(), "")
+}
