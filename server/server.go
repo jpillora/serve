@@ -1,9 +1,11 @@
 package server
 
 import (
+	"axon-docker/bar"
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -13,7 +15,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jaschaephraim/lrserver"
+	"gopkg.in/fsnotify.v1"
 )
+
+func init() {
+	sizestr.ToggleCase()
+}
 
 //Server is custom file server
 type Server struct {
@@ -23,6 +32,9 @@ type Server struct {
 	root     string
 	hasIndex bool
 	fallback *httputil.ReverseProxy
+	watcher  *fsnotify.Watcher
+	watching map[string]bool
+	lr       *lrserver.Server
 }
 
 //NewServer creates a new Server
@@ -49,8 +61,8 @@ func New(c *Config) (*Server, error) {
 		s.hasIndex = true
 	}
 
-	if c.FallbackProxy != "" {
-		u, err := url.Parse(c.FallbackProxy)
+	if c.Fallback != "" {
+		u, err := url.Parse(c.Fallback)
 
 		if !strings.HasPrefix(u.Scheme, "http") {
 			return nil, fmt.Errorf("Invalid fallback protocol scheme")
@@ -60,6 +72,18 @@ func New(c *Config) (*Server, error) {
 			return nil, err
 		}
 		s.fallback = httputil.NewSingleHostReverseProxy(u)
+	}
+
+	if c.LiveReload {
+		s.lr, _ = lrserver.New("serve-lr", lrserver.DefaultPort)
+		discard := log.New(ioutil.Discard, "", 0)
+		s.lr.SetErrorLog(discard)
+		s.lr.SetStatusLog(discard)
+		s.watching = map[string]bool{}
+		s.watcher, err = fsnotify.NewWatcher()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return s, nil
@@ -75,9 +99,23 @@ func (s *Server) Start() error {
 		}()
 	}
 
+	if s.c.LiveReload {
+		go func() {
+			if err := s.lr.ListenAndServe(); err != nil {
+				fmt.Printf("LiveReload server closed: %s", err)
+			}
+		}()
+		go func() {
+			for {
+				event := <-s.watcher.Events
+				s.lr.Reload(event.Name)
+			}
+		}()
+	}
+
 	if !s.c.NoLogging {
 		fmt.Println(c("serving ", "grey") +
-			c(shorten(s.c.Dir), "cyan") +
+			c(ShortenPath(s.c.Dir), "cyan") +
 			c(" on port ", "grey") +
 			c(s.port, "cyan"))
 	}
@@ -89,7 +127,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
 	//reporting
-	var sf *spyFile
+	var sf *fakeFile
 	var code int
 	reply := func(c int, msg string) {
 		w.WriteHeader(c)
@@ -103,7 +141,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		t := time.Now().Sub(t0)
 		size := ""
 		if sf != nil {
-			size = " " + tobyte(sf.read)
+			size = " " + sizestr.ToString(sf.read)
 		}
 		if !s.c.NoLogging {
 			fmt.Println(c(r.Method+" "+r.URL.Path, "grey") +
@@ -118,10 +156,10 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	//check file or dir
 	isdir := false
 	if info, err := os.Stat(p); err == nil {
-		//is file or dir
+		//found! -> is file or dir?
 		isdir = info.IsDir()
 	} else if err != nil {
-		//no-pushstate or has extension
+		//missing! -> no-pushstate or has extension?
 		if !s.c.PushState || filepath.Ext(p) != "" {
 			//not found! handle with proxy?
 			if s.fallback != nil {
@@ -147,7 +185,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 
 	//directory list
 	if isdir {
-		if s.c.NoDirList {
+		if s.c.NoList {
 			reply(403, "Listing not allowed")
 			return
 		}
@@ -184,8 +222,17 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//add all served directories to the watcher
+	if s.c.LiveReload {
+		dir, _ := filepath.Split(p)
+		if _, ok := s.watching[dir]; !ok {
+			s.watcher.Add(dir)
+			s.watching[dir] = true
+		}
+	}
+
 	//http.ServeContent handles caching and range requests
 	code = 200
-	sf = &spyFile{File: f}
+	sf = &fakeFile{File: f}
 	http.ServeContent(w, r, info.Name(), info.ModTime(), sf)
 }

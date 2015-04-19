@@ -10,20 +10,7 @@ import (
 	"github.com/jpillora/ansi"
 )
 
-var scale = []string{"b", "kb", "mb", "gb"}
-
-func tobyte(n int64) string {
-	for _, s := range scale {
-		if n > 1024 {
-			n = n / 1024
-		} else {
-			return strconv.FormatInt(n, 10) + s
-		}
-	}
-	return strconv.FormatInt(n, 10)
-}
-
-func shorten(s string) string {
+func ShortenPath(s string) string {
 	usr, err := user.Current()
 	if err != nil {
 		return s

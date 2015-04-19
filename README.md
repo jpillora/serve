@@ -26,30 +26,37 @@ $ go get -v github.com/jpillora/serve
 
 `serve --help`
 
-<tmpl,code:serve --help>
-```
-	Usage: serve [options] [directory]
+<tmpl,code: go run main.go --help>
+``` plain 
 
-	Serves the files in [directory], where [directory]
-	defaults to the current working directory.
-
-	Options:
-
-	--host, Host interface (defaults to 0.0.0.0)
-	--port, Listening port (defaults to 3000)
-	--pushstate, Missing paths (with no extension)
-	will return 200 and the root index.html file,
-	instead of returning of 404 Not found.
-	--nodirlist, Disable directory listing.
-	--noindex, Disable use of index.html automatic
-	redirection.
-	--open, Automatically runs the 'open' command
-	to open the listening page in the default
-	browse.
-	--help, This help text.
-
-	Read more:
-	  https://github.com/jpillora/serve
+  Usage: serve [options] [directory]
+  
+  Root [directory] from which files will be served (default ./)
+  
+  Options:
+  --host, -h        Host interface (default 0.0.0.0).
+  --port, -p        Listening port (default 3000).
+  --livereload, -l  Enable LiveReload, a websocket server, which triggers 
+                    page a refresh after each file change.
+  --pushstate       Enable PushState mode, causes missing directory paths 
+                    will return the root index.html file, instead of returning 
+                    a 404. This allows correct use of the HTML5 History API.
+  --nolist, -n      Disable directory listing.
+  --noindex         Disable use of index.html automatic redirection.
+  --nologging       Disable logging.
+  --open, -o        Automatically runs the 'open' command to open the 
+                    listening page in the default browse.
+  --fallback, -f    A proxy path to request if a given request 404's. This 
+                    allows you customize one file of a live site.
+  --help          
+  --version, -v   
+  
+  Read more:
+    https://github.com/jpillora/serve
+  
+  Version:
+    0.0.0
+  
 ```
 </tmpl>
 
