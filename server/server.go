@@ -1,7 +1,6 @@
 package server
 
 import (
-	"axon-docker/bar"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"github.com/jaschaephraim/lrserver"
+	"github.com/jpillora/sizestr"
 	"gopkg.in/fsnotify.v1"
 )
 
