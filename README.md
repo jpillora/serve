@@ -1,21 +1,25 @@
 
 # serve
 
-A basic HTTP file server in Go (Golang)
+A basic HTTP file server in Go
+
+[![GoDoc](https://godoc.org/github.com/jpillora/serve/server?status.svg)](https://godoc.org/github.com/jpillora/serve/server)
 
 ### Features
 
 * Fast
+* Single binary
 * Colourful logs
 * Displays response times
-* Supports PushState URLs (Missing paths returns the root)
-* Single binary
+* Supports PushState URLs (missing directories returns the root)
+* Supports LiveReload (useful with [this Chrome extension](https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei?hl=en))
+* Supports a fallback proxy (missing files defer to another server)
 
 ### Install
 
 **Binaries**
 
-See [Releases](https://github.com/jpillora/serve/releases/latest)
+See [the latest release](https://github.com/jpillora/serve/releases/latest) or download it with this one-liner: `curl i.jpillora.com/serve | bash`
 
 **Source**
 
@@ -31,7 +35,7 @@ $ go get -v github.com/jpillora/serve
 
   Usage: serve [options] [directory]
   
-  Root [directory] from which files will be served (default ./)
+  [directory] from which files will be served (default ./)
   
   Options:
   --host, -h        Host interface (default 0.0.0.0).
