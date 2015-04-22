@@ -10,6 +10,7 @@ type Config struct {
 	NoList     bool   `help:"Disable directory listing"`
 	NoIndex    bool   `help:"Disable use of index.html automatic redirection"`
 	NoLogging  bool   `help:"Disable logging"`
+	Caching    bool   `help:"Enable caching"`
 	Open       bool   `help:"Automatically runs the 'open' command to open the listening page in the default browse"`
 	Fallback   string `help:"A proxy path to request if a given request 404's. This allows you customize one file of a live site"`
 }

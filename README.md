@@ -48,6 +48,7 @@ $ go get -v github.com/jpillora/serve
   --nolist, -n      Disable directory listing.
   --noindex         Disable use of index.html automatic redirection.
   --nologging       Disable logging.
+  --caching, -c     Enable caching.
   --open, -o        Automatically runs the 'open' command to open the 
                     listening page in the default browse.
   --fallback, -f    A proxy path to request if a given request 404's. This 
@@ -66,7 +67,7 @@ $ go get -v github.com/jpillora/serve
 
 #### Credits
 
-TJ's [serve](https://npmjs.com/package/serve)
+TJ's [serve](https://github.com/tj/serve)
 
 #### MIT License
 

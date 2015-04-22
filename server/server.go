@@ -2,10 +2,13 @@ package server
 
 import (
 	"bytes"
+	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
 	"os"
@@ -113,46 +116,58 @@ func (s *Server) Start() error {
 		}()
 	}
 
+	h := http.Handler(http.HandlerFunc(s.handle))
+	//logging is enabled
 	if !s.c.NoLogging {
 		fmt.Println(c("serving ", "grey") +
 			c(ShortenPath(s.c.Dir), "cyan") +
 			c(" on port ", "grey") +
 			c(s.port, "cyan"))
+		//insert measurement middleware
+		h = s.measure(h)
 	}
-	return http.ListenAndServe(s.addr, http.HandlerFunc(s.handle))
+	//listen
+	return http.ListenAndServe(s.addr, h)
+}
+
+func (s *Server) measure(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//capture response
+		dummyw := httptest.NewRecorder()
+		//track timing
+		t0 := time.Now()
+		//perform response
+		next.ServeHTTP(dummyw, r)
+		//log result
+		t := time.Now().Sub(t0)
+
+		//write real response
+		for name, _ := range dummyw.HeaderMap {
+			w.Header().Set(name, dummyw.Header().Get(name))
+		}
+		w.WriteHeader(dummyw.Code)
+		w.Write(dummyw.Body.Bytes())
+
+		//log result
+		fmt.Println(c(r.Method+" "+r.URL.Path, "grey") + " " +
+			fmtcode(dummyw.Code) + " " +
+			c(fmtduration(t)+" "+
+				sizestr.ToString(int64(dummyw.Body.Len())), "grey"))
+	})
 }
 
 func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.Path
-
-	//reporting
-	var sf *fakeFile
-	var code int
+	//shorthand
 	reply := func(c int, msg string) {
 		w.WriteHeader(c)
-		code = c
 		if msg != "" {
 			w.Write([]byte(msg))
 		}
 	}
-	t0 := time.Now()
-	defer func() {
-		t := time.Now().Sub(t0)
-		size := ""
-		if sf != nil {
-			size = " " + sizestr.ToString(sf.read)
-		}
-		if !s.c.NoLogging {
-			fmt.Println(c(r.Method+" "+r.URL.Path, "grey") +
-				" " + fmtcode(code) + " " +
-				c(fmtduration(t)+size, "grey"))
-		}
-	}()
-
 	//requested file
 	p := filepath.Join(s.c.Dir, path)
-
 	//check file or dir
 	isdir := false
 	if info, err := os.Stat(p); err == nil {
@@ -189,22 +204,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			reply(403, "Listing not allowed")
 			return
 		}
-		files, err := ioutil.ReadDir(p)
-		if err != nil {
-			reply(500, err.Error())
-			return
-		}
-		buff := &bytes.Buffer{}
-		for _, f := range files {
-			n := f.Name()
-			if f.IsDir() {
-				n += "/"
-			}
-			s := fmt.Sprintf("<a href=\"%s\">\n\t%s\n</a><br>\n", filepath.Join(path, n), n)
-			buff.WriteString(s)
-		}
-		w.Header().Set("Content-Type", "text/html")
-		reply(200, buff.String())
+		s.dirlist(w, r, p)
 		return
 	}
 
@@ -222,7 +222,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//add all served directories to the watcher
+	//add all served file's parent dirs to the watcher
 	if s.c.LiveReload {
 		dir, _ := filepath.Split(p)
 		if _, ok := s.watching[dir]; !ok {
@@ -231,8 +231,94 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	//by default, caching is disabled
+	if !s.c.Caching {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+	}
+
 	//http.ServeContent handles caching and range requests
-	code = 200
-	sf = &fakeFile{File: f}
-	http.ServeContent(w, r, info.Name(), info.ModTime(), sf)
+	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
+}
+
+type listDir struct {
+	Path  string
+	Files []listFile
+}
+
+type listFile struct {
+	Name  string
+	IsDir bool
+	Size  int64
+	Mtime time.Time
+}
+
+func (s *Server) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
+
+	infos, err := ioutil.ReadDir(dir)
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	//create encodable
+	list := &listDir{
+		Path:  dir,
+		Files: make([]listFile, len(infos)),
+	}
+
+	for i, f := range infos {
+		n := f.Name()
+		if f.IsDir() {
+			n += "/"
+		}
+		list.Files[i] = listFile{
+			Name:  n,
+			IsDir: f.IsDir(),
+			Size:  f.Size(),
+			Mtime: f.ModTime(),
+		}
+	}
+
+	//return in acceptable format
+	accepts := strings.Split(r.Header.Get("Accept"), ",")
+	buff := &bytes.Buffer{}
+	contype := ""
+	for _, accept := range accepts {
+		tenc := strings.SplitN(accept, "/", 2)
+		if len(tenc) != 2 {
+			continue
+		}
+		switch tenc[1] {
+		case "json":
+			b, _ := json.Marshal(list)
+			buff.Write(b)
+		case "xml":
+			b, _ := xml.Marshal(list)
+			buff.Write(b)
+		case "html":
+			for _, f := range list.Files {
+				s := fmt.Sprintf("<a href=\"%s\">\n\t%s\n</a><br>\n",
+					filepath.Join(list.Path, f.Name), f.Name)
+				buff.WriteString(s)
+			}
+		default:
+			continue
+		}
+		contype = accept
+		break
+	}
+	//no match
+	if contype == "" {
+		for _, f := range list.Files {
+			buff.WriteString(f.Name + "\n")
+		}
+		contype = "text/plain"
+	}
+
+	w.Header().Set("Content-Type", contype)
+	w.WriteHeader(200)
+	w.Write(buff.Bytes())
 }
