@@ -26,41 +26,45 @@ See [the latest release](https://github.com/jpillora/serve/releases/latest) or d
 ``` sh
 $ go get -v github.com/jpillora/serve
 ```
+
 ### Usage
 
-`serve --help`
+```
+serve --help
+```
 
 <tmpl,code: go run main.go --help>
 ``` plain 
 
   Usage: serve [options] [directory]
   
-  [directory] from which files will be served (default ./)
+  [directory] from which files will be served (default .)
   
   Options:
-  --host, -h        Host interface (default 0.0.0.0).
-  --port, -p        Listening port (default 3000).
+  --host, -h        Host interface (default 0.0.0.0)
+  --port, -p        Listening port (default 3000)
   --livereload, -l  Enable LiveReload, a websocket server, which triggers 
-                    page a refresh after each file change.
+                    page a refresh after each file change
   --pushstate       Enable PushState mode, causes missing directory paths 
                     will return the root index.html file, instead of returning 
-                    a 404. This allows correct use of the HTML5 History API.
-  --nolist, -n      Disable directory listing.
-  --noindex         Disable use of index.html automatic redirection.
-  --nologging       Disable logging.
-  --caching, -c     Enable caching.
+                    a 404. This allows correct use of the HTML5 History API
+  --noindex, -n     Disable automatic loading of index.html
+  --nolist          Disable directory listing
+  --quiet, -q       Disable all output
+  --fastmode, -f    Requests are not hashed and measured, useful for serving 
+                    large files
   --open, -o        Automatically runs the 'open' command to open the 
-                    listening page in the default browse.
-  --fallback, -f    A proxy path to request if a given request 404's. This 
-                    allows you customize one file of a live site.
+                    listening page in the default browser
+  --fallback        A proxy path to request if a given request 404's. This 
+                    allows you customize one file of a live site
   --help          
   --version, -v   
   
-  Read more:
-    https://github.com/jpillora/serve
-  
   Version:
     0.0.0
+  
+  Read more:
+    https://github.com/jpillora/serve
   
 ```
 </tmpl>

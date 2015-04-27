@@ -12,15 +12,16 @@ var VERSION string = "0.0.0"
 func main() {
 
 	//defaults
-	c := &server.Config{
-		Dir:  "./",
-		Host: "0.0.0.0",
-		Port: 3000,
+	c := server.Config{
+		Directory: ".",
+		Host:      "0.0.0.0",
+		Port:      3000,
 	}
 
 	//parse
-	opts.AutoNew(c).
+	opts.New(&c).
 		Version(VERSION).
+		PkgRepo().
 		Parse()
 
 	//ready!

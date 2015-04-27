@@ -2,6 +2,7 @@ package server
 
 import (
 	"os/user"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,6 +19,7 @@ func ShortenPath(s string) string {
 	if strings.HasPrefix(s, usr.HomeDir) {
 		s = strings.Replace(s, usr.HomeDir, "~", 1)
 	}
+	s = strings.TrimSuffix(s, string(filepath.Separator))
 	return s
 }
 
