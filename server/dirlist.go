@@ -42,21 +42,24 @@ func (s *Server) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 	list := &listDir{
 		Path:   path,
 		Parent: parent,
-		Files:  make([]listFile, len(infos)),
+		Files:  []listFile{},
 	}
 
-	for i, f := range infos {
+	for _, f := range infos {
 		n := f.Name()
+		if n == ".DS_Store" {
+			continue //Nope.
+		}
 		if f.IsDir() {
 			n += "/"
 		}
-		list.Files[i] = listFile{
+		list.Files = append(list.Files, listFile{
 			Name:  n,
 			Path:  "/" + filepath.Join(path, n),
 			IsDir: f.IsDir(),
 			Size:  f.Size(),
 			Mtime: f.ModTime(),
-		}
+		})
 	}
 
 	accepts := strings.Split(r.Header.Get("Accept"), ",")
@@ -111,7 +114,6 @@ var dirlistHtml = `
 				text-decoration: none;
 			}
 			table {
-				width: 300px;
 				margin: 5%;
 			}
 			.path {
@@ -121,28 +123,26 @@ var dirlistHtml = `
 				text-align: right;
 				padding-right: 30px;
 			}
+			.name a {
+				word-wrap:break-word;
+				display: inline-block;
+				width: 300px;
+			}
 			.size {
 				text-align: left;
 			}
+
 		</style>
 	</head>
 	<body>
 		<table>
 			<tr>
-				<th class="path" colspan="2">
-					<span class="pathstr">
-						<a href="/">/</a>
-						{{ $path := "" }}
-						{{range $i, $p := split .Path "/"}}
-							{{ $path := concat $path $p }}
-							<a href="/{{ $path }}/">{{ $p }}/</a>
-						{{end}}
-					</span>
-				</th>
-			</tr>
-			<tr>
 				<th class="name">Name</th>
 				<th class="size">Size</th>
+			</tr>
+			<tr class="file item">
+				<td class="name"><a href="/{{ .Path }}">.</a></td>
+				<td class="size">-</td>
 			</tr>
 			{{if ne .Parent ""}}<tr class="file item">
 				<td class="name"><a href="{{ .Parent }}">..</a></td>
@@ -166,3 +166,16 @@ var dirlistHtml = `
 	</body>
 </html>
 `
+
+// <tr>
+// 	<th class="path" colspan="2">
+// 		<span class="pathstr">
+// 			<a href="/">/</a>
+// 			{{ $path := "" }}
+// 			{{range $i, $p := split .Path "/"}}
+// 				{{ $path := concat $path $p }}
+// 				<a href="/{{ $path }}/">{{ $p }}/</a>
+// 			{{end}}
+// 		</span>
+// 	</th>
+// </tr>
