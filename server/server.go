@@ -15,13 +15,8 @@ import (
 	"time"
 
 	"github.com/jaschaephraim/lrserver"
-	"github.com/jpillora/sizestr"
 	"gopkg.in/fsnotify.v1"
 )
-
-func init() {
-	sizestr.ToggleCase()
-}
 
 //Server is custom file server
 type Server struct {
@@ -110,7 +105,7 @@ func (s *Server) Start() error {
 		}()
 	}
 
-	h := http.Handler(http.HandlerFunc(s.serveFile))
+	h := http.Handler(http.HandlerFunc(s.serve))
 
 	//insert development middleware
 	if !s.c.FastMode {
@@ -128,7 +123,7 @@ func (s *Server) Start() error {
 	return http.ListenAndServe(s.addr, h)
 }
 
-func (s *Server) serveFile(w http.ResponseWriter, r *http.Request) {
+func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.Path
 	//shorthand
@@ -159,6 +154,14 @@ func (s *Server) serveFile(w http.ResponseWriter, r *http.Request) {
 		}
 		p = s.root //known to exist
 		isdir = false
+	}
+
+	//force trailing slash
+	if isdir && !s.c.NoSlash && !strings.HasSuffix(path, "/") {
+		w.Header().Set("Location", path+"/")
+		w.WriteHeader(302)
+		w.Write([]byte("Redirecting"))
+		return
 	}
 
 	//optionally use index instead of directory list

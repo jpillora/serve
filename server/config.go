@@ -8,6 +8,7 @@ type Config struct {
 	LiveReload bool   `help:"Enable LiveReload, a websocket server, which triggers page a refresh after each file change"`
 	PushState  bool   `help:"Enable PushState mode, causes missing directory paths will return the root index.html file, instead of returning a 404. This allows correct use of the HTML5 History API"`
 	NoIndex    bool   `help:"Disable automatic loading of index.html"`
+	NoSlash    bool   `help:"Disables automatic slash insertion when loading an index.html or directory"`
 	NoList     bool   `help:"Disable directory listing"`
 	Quiet      bool   `help:"Disable all output"`
 	FastMode   bool   `help:"Requests are not hashed and measured, useful for serving large files"`
