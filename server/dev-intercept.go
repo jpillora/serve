@@ -23,7 +23,7 @@ func (s *Server) devIntercept(next http.Handler) http.Handler {
 		t := time.Now().Sub(t0)
 
 		//use etag instead of last-modified
-		// dummyw.Header().Del("Last-Modified")
+		dummyw.Header().Del("Last-Modified")
 		//use all other headers
 		for name, _ := range dummyw.HeaderMap {
 			w.Header().Set(name, dummyw.Header().Get(name))

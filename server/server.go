@@ -2,8 +2,10 @@ package server
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"mime"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -15,6 +17,7 @@ import (
 	"time"
 
 	"github.com/jaschaephraim/lrserver"
+	"github.com/jpillora/archiver"
 	"gopkg.in/fsnotify.v1"
 )
 
@@ -140,27 +143,47 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	if info, err := os.Stat(p); err == nil {
 		//found! -> is file or dir?
 		isdir = info.IsDir()
-	} else if err != nil {
-		//missing! -> no-pushstate or has extension?
-		if !s.c.PushState || filepath.Ext(p) != "" {
-			//not found! handle with proxy?
-			if s.fallback != nil {
-				s.fallback.ServeHTTP(w, r)
-				return
-			}
-			//not found!!
-			reply(404, "Not found")
-			return
-		}
+	} else if s.c.PushState && filepath.Ext(p) == "" {
+		//missing and pushstate and no ext
 		p = s.root //known to exist
 		isdir = false
+	} else if s.fallback != nil {
+		//missing and fallback proxy enabled
+		s.fallback.ServeHTTP(w, r)
+		return
+	} else if dir, ext, ok := archiveRequest(p); ok {
+		//missing and archiving enabled, attempt archive
+		a, err := archiver.New(ext)
+		if err != nil {
+			reply(500, err.Error())
+			return
+		}
+		if !s.c.FastMode {
+			a.DirMaxSize = 1e9 //must buffer so, 1GB max
+		}
+		if err := a.AddDir(dir); err != nil {
+			reply(500, err.Error())
+			return
+		}
+		if err := a.Close(); err != nil {
+			reply(500, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", mime.TypeByExtension(ext))
+		w.WriteHeader(200)
+		io.Copy(w, a)
+		return
+	} else {
+		//not found!!
+		reply(404, "Not found")
+		return
 	}
 
 	//force trailing slash
 	if isdir && !s.c.NoSlash && !strings.HasSuffix(path, "/") {
 		w.Header().Set("Location", path+"/")
 		w.WriteHeader(302)
-		w.Write([]byte("Redirecting"))
+		w.Write([]byte("Redirecting (must use slash for directories)"))
 		return
 	}
 
