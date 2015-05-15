@@ -72,6 +72,7 @@ func archiveRequest(path string) (dir, ext string, ok bool) {
 	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
 		return
 	}
+	dir = strings.TrimSuffix(dir, "/")
 	ok = true
 	return
 }

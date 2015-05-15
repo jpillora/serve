@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"mime"
@@ -153,25 +152,22 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if dir, ext, ok := archiveRequest(p); ok {
 		//missing and archiving enabled, attempt archive
-		a, err := archiver.New(ext)
-		if err != nil {
-			reply(500, err.Error())
-			return
-		}
+		w.Header().Set("Content-Type", mime.TypeByExtension(ext))
+		w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(dir)+ext)
+		w.WriteHeader(200)
+		//write archive
+		a, _ := archiver.NewWriter(ext, w)
 		if !s.c.FastMode {
-			a.DirMaxSize = 1e9 //must buffer so, 1GB max
+			a.DirMaxSize = 500e6 //must buffer so, 500MB max
 		}
 		if err := a.AddDir(dir); err != nil {
-			reply(500, err.Error())
+			w.Write([]byte("\n\nERROR: " + err.Error()))
 			return
 		}
 		if err := a.Close(); err != nil {
-			reply(500, err.Error())
+			w.Write([]byte("\n\nERROR: " + err.Error()))
 			return
 		}
-		w.Header().Set("Content-Type", mime.TypeByExtension(ext))
-		w.WriteHeader(200)
-		io.Copy(w, a)
 		return
 	} else {
 		//not found!!

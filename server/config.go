@@ -10,7 +10,7 @@ type Config struct {
 	NoIndex    bool   `help:"Disable automatic loading of index.html"`
 	NoSlash    bool   `help:"Disables automatic slash insertion when loading an index.html or directory"`
 	NoList     bool   `help:"Disable directory listing"`
-	NoArchive  bool   `help:"Disable directory archiving (download directories by appending .zip .tar .tar.gz)"`
+	NoArchive  bool   `help:"Disable directory archiving (download directories by appending .zip .tar .tar.gz - archives are directly streamed when --fastmode is enabled)"`
 	Quiet      bool   `help:"Disable all output"`
 	FastMode   bool   `help:"Requests are not hashed and measured, useful for serving large files"`
 	Open       bool   `help:"Automatically runs the 'open' command to open the listening page in the default browser"`

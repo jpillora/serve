@@ -13,8 +13,11 @@ import (
 )
 
 type listDir struct {
-	Path, Parent string
-	Files        []listFile
+	Path, Parent      string
+	NumFiles, NumDirs int
+	TotalSize         int64
+	Archive           bool
+	Files             []listFile
 }
 
 type listFile struct {
@@ -40,9 +43,10 @@ func (s *Server) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 	}
 
 	list := &listDir{
-		Path:   path,
-		Parent: parent,
-		Files:  []listFile{},
+		Path:    path,
+		Parent:  parent,
+		Archive: !s.c.NoArchive,
+		Files:   []listFile{},
 	}
 
 	for _, f := range infos {
@@ -50,14 +54,20 @@ func (s *Server) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 		if n == ".DS_Store" {
 			continue //Nope.
 		}
+		var size int64
 		if f.IsDir() {
 			n += "/"
+			list.NumDirs++
+		} else {
+			list.NumFiles++
+			size = f.Size()
+			list.TotalSize += size
 		}
 		list.Files = append(list.Files, listFile{
 			Name:  n,
 			Path:  "/" + filepath.Join(path, n),
 			IsDir: f.IsDir(),
-			Size:  f.Size(),
+			Size:  size,
 			Mtime: f.ModTime(),
 		})
 	}
@@ -131,6 +141,9 @@ var dirlistHtml = `
 			.size {
 				text-align: left;
 			}
+			.archive {
+				font-size: 0.8em;
+			}
 
 		</style>
 	</head>
@@ -156,26 +169,32 @@ var dirlistHtml = `
 					{{if .IsDir}}-{{else}}{{ tosize .Size }}{{end}}
 				</td>
 			</tr>{{end}}
-			<tr>
-				<th class="stats" colspan="2">
-					{{ $numfiles := len .Files }}
-					{{ $numfiles }} file{{if ne $numfiles 1 }}s{{end}}
+			{{if .NumFiles}}<tr class="files">
+				<th class="name">
+					{{.NumFiles}} file{{if ne .NumFiles 1}}s{{end}}
 				</th>
-			</tr>
+				<th class="size" alt="{{ .TotalSize }} bytes">
+					{{ tosize .TotalSize }}
+				</th>
+			</tr>{{end}}
+			{{if .NumDirs}}<tr class="files">
+				<th class="name">
+					{{.NumDirs}} dir{{if ne .NumDirs 1}}s{{end}}
+				</th>
+				<th>
+				</th>
+			</tr>{{end}}
+			{{if .Archive}}<tr class="archive">
+				<th class="name">
+					download all as
+				</th>
+				<th>
+					<a href="/{{ .Path }}.zip">zip</a>,
+					<a href="/{{ .Path }}.tar">tar</a>,
+					<a href="/{{ .Path }}.tar.gz">tar.gz</a>
+				</th>
+			</tr>{{end}}
 		</table>
 	</body>
 </html>
 `
-
-// <tr>
-// 	<th class="path" colspan="2">
-// 		<span class="pathstr">
-// 			<a href="/">/</a>
-// 			{{ $path := "" }}
-// 			{{range $i, $p := split .Path "/"}}
-// 				{{ $path := concat $path $p }}
-// 				<a href="/{{ $path }}/">{{ $p }}/</a>
-// 			{{end}}
-// 		</span>
-// 	</th>
-// </tr>
