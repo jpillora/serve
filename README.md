@@ -49,7 +49,12 @@ serve --help
                     will return the root index.html file, instead of returning 
                     a 404. This allows correct use of the HTML5 History API
   --noindex, -n     Disable automatic loading of index.html
+  --noslash         Disables automatic slash insertion when loading an 
+                    index.html or directory
   --nolist          Disable directory listing
+  --noarchive       Disable directory archiving (download directories by 
+                    appending .zip .tar .tar.gz - archives are directly 
+                    streamed when --fastmode is enabled)
   --quiet, -q       Disable all output
   --fastmode, -f    Requests are not hashed and measured, useful for serving 
                     large files
