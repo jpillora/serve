@@ -12,7 +12,8 @@ type Config struct {
 	NoList     bool   `help:"Disable directory listing"`
 	NoArchive  bool   `help:"Disable directory archiving (download directories by appending .zip .tar .tar.gz, archives are streamed without buffering)"`
 	Quiet      bool   `help:"Disable all output"`
-	TimeFmt    string `help:"Timestamp format"`
+	NoColor    bool   `help:"Disable color in output"`
+	TimeFmt    string `help:"Set timestamp output format"`
 	Open       bool   `help:"On server startup, open the root in the default browser (uses the 'open' command)"`
 	Fallback   string `help:"Requests that yeild a 404, will instead proxy through to the provided path (swaps in the appropriate Host header)"`
 }

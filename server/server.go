@@ -28,6 +28,7 @@ type Server struct {
 	addr         string
 	port         string
 	root         string
+	colors       *colors
 	hasIndex     bool
 	fallback     *httputil.ReverseProxy
 	fallbackHost string
@@ -49,6 +50,12 @@ func New(c Config) (*Server, error) {
 	_, err := os.Stat(c.Directory)
 	if c.Directory == "" || err != nil {
 		return nil, fmt.Errorf("Missing directory: %s", c.Directory)
+	}
+
+	if c.NoColor {
+		s.colors = &colors{}
+	} else {
+		s.colors = defaultColors
 	}
 
 	if c.PushState {
@@ -115,10 +122,13 @@ func (s *Server) Start() error {
 
 	//logging is enabled
 	if !s.c.Quiet {
-		fmt.Println(c("serving ", "grey") +
-			c(ShortenPath(s.c.Directory), "cyan") +
-			c(" on port ", "grey") +
-			c(s.port, "cyan"))
+		introTemplate.Execute(os.Stdout, &struct {
+			*colors
+			Dir, Port string
+		}{
+			s.colors,
+			s.c.Directory, s.port,
+		})
 	}
 	//listen
 	return http.ListenAndServe(s.addr, h)
@@ -139,14 +149,23 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 			ip := ""
 			h, _, _ := net.SplitHostPort(r.RemoteAddr)
 			if h != "127.0.0.1" {
-				ip = c(" ("+h+")", "grey")
+				ip = h
 			}
-			//log result
-			fmt.Println(c(t0.Format(s.c.TimeFmt), "grey") +
-				c(r.Method+" "+r.URL.Path, "grey") + " " +
-				fmtcode(sw.Code) + " " +
-				c(fmtduration(t)+" "+sizestr.ToString(sw.Size), "grey") +
-				ip)
+			cc := ""
+			if !s.c.NoColor {
+				cc = colorcode(sw.Code)
+			}
+			logTemplate.Execute(os.Stdout, &struct {
+				*colors
+				Timestamp, Method, Path, CodeColor string
+				Code                               int
+				Duration, Size, IP                 string
+			}{
+				s.colors,
+				t0.Format(s.c.TimeFmt), r.Method, r.URL.Path, cc,
+				sw.Code,
+				fmtduration(t), sizestr.ToString(sw.Size), ip,
+			})
 		}()
 	}
 

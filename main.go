@@ -16,7 +16,7 @@ func main() {
 		Directory: ".",
 		Host:      "0.0.0.0",
 		Port:      3000,
-		TimeFmt:   "[2006-01-02 15:04:05.000] ",
+		TimeFmt:   "[2006-01-02 15:04:05.000]",
 	}
 
 	//parse

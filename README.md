@@ -57,7 +57,9 @@ serve --help
                     appending .zip .tar .tar.gz, archives are streamed 
                     without buffering)
   --quiet, -q       Disable all output
-  --timefmt, -t     Timestamp format (default [2006-01-02 15:04:05.000] )
+  --nocolor         Disable color in output
+  --timefmt, -t     Set timestamp output format (default [2006-01-02 
+                    15:04:05.000])
   --open, -o        On server startup, open the root in the default browser 
                     (uses the 'open' command)
   --fallback, -f    Requests that yeild a 404, will instead proxy through 

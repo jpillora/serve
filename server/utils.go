@@ -1,16 +1,39 @@
 package server
 
 import (
+	"net/http"
 	"os/user"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jpillora/ansi"
 )
 
+//inpsectable ResponseWriter
+type ServeWriter struct {
+	w http.ResponseWriter
+	//stats
+	Code int
+	Size int64
+}
+
+func (s *ServeWriter) Header() http.Header {
+	return s.w.Header()
+}
+
+func (s *ServeWriter) Write(p []byte) (int, error) {
+	s.Size += int64(len(p))
+	return s.w.Write(p)
+}
+
+func (s *ServeWriter) WriteHeader(c int) {
+	s.Code = c
+	s.w.WriteHeader(c)
+}
+
+//util functions
 func ShortenPath(s string) string {
 	usr, err := user.Current()
 	if err != nil {
@@ -23,36 +46,26 @@ func ShortenPath(s string) string {
 	return s
 }
 
-func c(s string, c string) string {
-	var color ansi.Attribute
-	switch c {
-	case "grey":
-		color = ansi.Black
-	case "cyan":
-		color = ansi.Cyan
-	case "yellow":
-		color = ansi.Yellow
-	case "red":
-		color = ansi.Red
-	default:
-		color = ansi.Green
-	}
-	return string(ansi.Set(color)) + s + string(ansi.Set(ansi.Reset))
+type colors struct {
+	Grey, Cyan, Yellow, Red, Reset string
 }
 
-func fmtcode(status int) string {
-	s := strconv.Itoa(status)
+var defaultColors = &colors{
+	string(ansi.Set(ansi.Black)), string(ansi.Set(ansi.Cyan)), string(ansi.Set(ansi.Yellow)), string(ansi.Set(ansi.Yellow)), string(ansi.Set(ansi.Yellow)),
+}
+
+func colorcode(status int) string {
 	switch status / 100 {
 	case 2:
-		return c(s, "green")
+		return string(ansi.Set(ansi.Green))
 	case 3:
-		return c(s, "cyan")
+		return string(ansi.Set(ansi.Cyan))
 	case 4:
-		return c(s, "yellow")
+		return string(ansi.Set(ansi.Yellow))
 	case 5:
-		return c(s, "red")
+		return string(ansi.Set(ansi.Red))
 	}
-	return s
+	return string(ansi.Set(ansi.Black))
 }
 
 var fmtdurationRe = regexp.MustCompile(`\.\d+`)
