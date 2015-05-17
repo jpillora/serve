@@ -10,9 +10,9 @@ type Config struct {
 	NoIndex    bool   `help:"Disable automatic loading of index.html"`
 	NoSlash    bool   `help:"Disables automatic slash insertion when loading an index.html or directory"`
 	NoList     bool   `help:"Disable directory listing"`
-	NoArchive  bool   `help:"Disable directory archiving (download directories by appending .zip .tar .tar.gz - archives are directly streamed when --fastmode is enabled)"`
+	NoArchive  bool   `help:"Disable directory archiving (download directories by appending .zip .tar .tar.gz, archives are streamed without buffering)"`
 	Quiet      bool   `help:"Disable all output"`
-	FastMode   bool   `help:"Requests are not hashed and measured, useful for serving large files"`
-	Open       bool   `help:"Automatically runs the 'open' command to open the listening page in the default browser"`
-	Fallback   string `help:"A proxy path to request if a given request 404's. This allows you customize one file of a live site"`
+	TimeFmt    string `help:"Timestamp format"`
+	Open       bool   `help:"On server startup, open the root in the default browser (uses the 'open' command)"`
+	Fallback   string `help:"Requests that yeild a 404, will instead proxy through to the provided path (swaps in the appropriate Host header)"`
 }

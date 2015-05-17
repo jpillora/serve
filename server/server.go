@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"mime"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -16,21 +17,23 @@ import (
 	"time"
 
 	"github.com/jaschaephraim/lrserver"
-	"github.com/jpillora/archiver"
+	"github.com/jpillora/archive"
+	"github.com/jpillora/sizestr"
 	"gopkg.in/fsnotify.v1"
 )
 
 //Server is custom file server
 type Server struct {
-	c        Config
-	addr     string
-	port     string
-	root     string
-	hasIndex bool
-	fallback *httputil.ReverseProxy
-	watcher  *fsnotify.Watcher
-	watching map[string]bool
-	lr       *lrserver.Server
+	c            Config
+	addr         string
+	port         string
+	root         string
+	hasIndex     bool
+	fallback     *httputil.ReverseProxy
+	fallbackHost string
+	watcher      *fsnotify.Watcher
+	watching     map[string]bool
+	lr           *lrserver.Server
 }
 
 //NewServer creates a new Server
@@ -65,6 +68,7 @@ func New(c Config) (*Server, error) {
 		if !strings.HasPrefix(u.Scheme, "http") {
 			return nil, fmt.Errorf("Invalid fallback protocol scheme")
 		}
+		s.fallbackHost = u.Host
 		s.fallback = httputil.NewSingleHostReverseProxy(u)
 	}
 
@@ -109,11 +113,6 @@ func (s *Server) Start() error {
 
 	h := http.Handler(http.HandlerFunc(s.serve))
 
-	//insert development middleware
-	if !s.c.FastMode {
-		h = s.devIntercept(h)
-	}
-
 	//logging is enabled
 	if !s.c.Quiet {
 		fmt.Println(c("serving ", "grey") +
@@ -127,6 +126,30 @@ func (s *Server) Start() error {
 
 func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 
+	//when logs are enabled, swap out response writer with
+	//inspectable version
+	if !s.c.Quiet {
+		sw := &ServeWriter{w: w}
+		w = sw
+		//track timing
+		t0 := time.Now()
+		defer func() {
+			t := time.Now().Sub(t0)
+			//show ip if external
+			ip := ""
+			h, _, _ := net.SplitHostPort(r.RemoteAddr)
+			if h != "127.0.0.1" {
+				ip = c(" ("+h+")", "grey")
+			}
+			//log result
+			fmt.Println(c(t0.Format(s.c.TimeFmt), "grey") +
+				c(r.Method+" "+r.URL.Path, "grey") + " " +
+				fmtcode(sw.Code) + " " +
+				c(fmtduration(t)+" "+sizestr.ToString(sw.Size), "grey") +
+				ip)
+		}()
+	}
+
 	path := r.URL.Path
 	//shorthand
 	reply := func(c int, msg string) {
@@ -139,27 +162,33 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	p := filepath.Join(s.c.Directory, path)
 	//check file or dir
 	isdir := false
-	if info, err := os.Stat(p); err == nil {
-		//found! -> is file or dir?
+	missing := false
+	if info, err := os.Stat(p); err != nil {
+		missing = true
+	} else {
 		isdir = info.IsDir()
-	} else if s.c.PushState && filepath.Ext(p) == "" {
+	}
+
+	if missing && s.c.PushState && filepath.Ext(p) == "" {
 		//missing and pushstate and no ext
-		p = s.root //known to exist
+		p = s.root //change to request for the root
 		isdir = false
-	} else if s.fallback != nil {
-		//missing and fallback proxy enabled
+	}
+
+	if (missing || isdir) && s.fallback != nil {
+		//fallback proxy enabled
+		r.Host = s.fallbackHost
 		s.fallback.ServeHTTP(w, r)
 		return
-	} else if dir, ext, ok := archiveRequest(p); ok {
-		//missing and archiving enabled, attempt archive
+	}
+
+	if dir, ext, ok := archiveRequest(p); ok {
+		//missing and is dir and archiving enabled
 		w.Header().Set("Content-Type", mime.TypeByExtension(ext))
 		w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(dir)+ext)
 		w.WriteHeader(200)
 		//write archive
-		a, _ := archiver.NewWriter(ext, w)
-		if !s.c.FastMode {
-			a.DirMaxSize = 500e6 //must buffer so, 500MB max
-		}
+		a, _ := archive.NewWriter(ext, w)
 		if err := a.AddDir(dir); err != nil {
 			w.Write([]byte("\n\nERROR: " + err.Error()))
 			return
@@ -169,8 +198,10 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		return
-	} else {
-		//not found!!
+	}
+
+	if !isdir && missing {
+		//file not found!!
 		reply(404, "Not found")
 		return
 	}

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/jpillora/ansi"
-	"github.com/jpillora/archiver"
+	"github.com/jpillora/archive"
 )
 
 func ShortenPath(s string) string {
@@ -64,7 +64,7 @@ func fmtduration(t time.Duration) string {
 }
 
 func archiveRequest(path string) (dir, ext string, ok bool) {
-	ext = archiver.Extension(path)
+	ext = archive.Extension(path)
 	if ext == "" {
 		return
 	}

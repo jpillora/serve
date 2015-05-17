@@ -76,11 +76,11 @@ func (s *Server) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 	buff := &bytes.Buffer{}
 	contype := ""
 	for _, accept := range accepts {
-		tenc := strings.SplitN(accept, "/", 2)
-		if len(tenc) != 2 {
+		typeencoding := strings.SplitN(accept, "/", 2)
+		if len(typeencoding) != 2 {
 			continue
 		}
-		switch tenc[1] {
+		switch typeencoding[1] {
 		case "json":
 			b, _ := json.MarshalIndent(list, "", "  ")
 			buff.Write(b)

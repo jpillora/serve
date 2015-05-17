@@ -9,11 +9,12 @@ A basic HTTP file server in Go
 
 * Fast
 * Single binary
-* Colourful logs
-* Displays response times
-* Supports PushState URLs (missing directories returns the root)
-* Supports LiveReload (useful with [this Chrome extension](https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei?hl=en))
-* Supports a fallback proxy (missing files defer to another server)
+* Colourful logs with modifiable timestamps and response times
+* Directory listing supporting multiple content types (`html`,`json` and `xml`) via the `Accept` header
+* Directory downloads via on-demand `zip` and `tar` [archive](https://github.com/jpillora/archive)s
+* Optional PushState (HTML5 History API) mode (missing directories returns the root)
+* LiveReload (combines with [this Chrome extension](https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei?hl=en))
+* Fallback proxy (missing requests defer to another server)
 
 ### Install
 
@@ -53,15 +54,15 @@ serve --help
                     index.html or directory
   --nolist          Disable directory listing
   --noarchive       Disable directory archiving (download directories by 
-                    appending .zip .tar .tar.gz - archives are directly 
-                    streamed when --fastmode is enabled)
+                    appending .zip .tar .tar.gz, archives are streamed 
+                    without buffering)
   --quiet, -q       Disable all output
-  --fastmode, -f    Requests are not hashed and measured, useful for serving 
-                    large files
-  --open, -o        Automatically runs the 'open' command to open the 
-                    listening page in the default browser
-  --fallback        A proxy path to request if a given request 404's. This 
-                    allows you customize one file of a live site
+  --timefmt, -t     Timestamp format (default [2006-01-02 15:04:05.000] )
+  --open, -o        On server startup, open the root in the default browser 
+                    (uses the 'open' command)
+  --fallback, -f    Requests that yeild a 404, will instead proxy through 
+                    to the provided path (swaps in the appropriate Host 
+                    header)
   --help          
   --version, -v   
   
