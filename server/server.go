@@ -169,35 +169,48 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		isdir = info.IsDir()
 	}
 
-	if missing && s.c.PushState && filepath.Ext(p) == "" {
+	if s.c.PushState && missing && filepath.Ext(p) == "" {
 		//missing and pushstate and no ext
 		p = s.root //change to request for the root
 		isdir = false
 	}
 
-	if (missing || isdir) && s.fallback != nil {
+	if s.fallback != nil && (missing || isdir) {
 		//fallback proxy enabled
 		r.Host = s.fallbackHost
 		s.fallback.ServeHTTP(w, r)
 		return
 	}
 
-	if dir, ext, ok := archiveRequest(p); ok {
-		//missing and is dir and archiving enabled
-		w.Header().Set("Content-Type", mime.TypeByExtension(ext))
-		w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(dir)+ext)
-		w.WriteHeader(200)
-		//write archive
-		a, _ := archive.NewWriter(ext, w)
-		if err := a.AddDir(dir); err != nil {
-			w.Write([]byte("\n\nERROR: " + err.Error()))
+	if !s.c.NoArchive && missing {
+		//check if is archivable
+		ok := false
+		ext := archive.Extension(p)
+		dir := ""
+		if ext != "" {
+			var err error
+			if dir, err = filepath.Abs(strings.TrimSuffix(p, ext)); err == nil {
+				if info, err := os.Stat(dir); err == nil && info.IsDir() {
+					ok = true
+				}
+			}
+		}
+		if ok {
+			w.Header().Set("Content-Type", mime.TypeByExtension(ext))
+			w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(dir)+ext)
+			w.WriteHeader(200)
+			//write archive
+			a, _ := archive.NewWriter(ext, w)
+			if err := a.AddDir(dir); err != nil {
+				w.Write([]byte("\n\nERROR: " + err.Error()))
+				return
+			}
+			if err := a.Close(); err != nil {
+				w.Write([]byte("\n\nERROR: " + err.Error()))
+				return
+			}
 			return
 		}
-		if err := a.Close(); err != nil {
-			w.Write([]byte("\n\nERROR: " + err.Error()))
-			return
-		}
-		return
 	}
 
 	if !isdir && missing {

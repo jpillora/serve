@@ -1,7 +1,6 @@
 package server
 
 import (
-	"os"
 	"os/user"
 	"path/filepath"
 	"regexp"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	"github.com/jpillora/ansi"
-	"github.com/jpillora/archive"
 )
 
 func ShortenPath(s string) string {
@@ -61,18 +59,4 @@ var fmtdurationRe = regexp.MustCompile(`\.\d+`)
 
 func fmtduration(t time.Duration) string {
 	return fmtdurationRe.ReplaceAllString(t.String(), "")
-}
-
-func archiveRequest(path string) (dir, ext string, ok bool) {
-	ext = archive.Extension(path)
-	if ext == "" {
-		return
-	}
-	dir = strings.TrimSuffix(path, ext)
-	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
-		return
-	}
-	dir = strings.TrimSuffix(dir, "/")
-	ok = true
-	return
 }
