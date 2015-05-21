@@ -148,7 +148,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 			//show ip if external
 			ip := ""
 			h, _, _ := net.SplitHostPort(r.RemoteAddr)
-			if h != "127.0.0.1" {
+			if h != "127.0.0.1" && h != "::1" {
 				ip = h
 			}
 			cc := ""
