@@ -192,6 +192,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		//missing and pushstate and no ext
 		p = s.root //change to request for the root
 		isdir = false
+		missing = false
 	}
 
 	if s.fallback != nil && (missing || isdir) {
