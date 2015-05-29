@@ -64,7 +64,6 @@ func New(c Config) (*Server, error) {
 		s.root = filepath.Join(c.Directory, "index.html")
 		if _, err := os.Stat(s.root); err != nil {
 			return nil, fmt.Errorf("'%s' is required for pushstate", s.root)
-
 		}
 		s.hasIndex = true
 	}
@@ -116,8 +115,12 @@ func (s *Server) Start() error {
 			for {
 				event := <-s.watcher.Events
 				switch event.Op {
-				case fsnotify.Create, fsnotify.Rename:
+				case fsnotify.Create, fsnotify.Rename, fsnotify.Write:
 					s.lr.Reload(event.Name)
+				case fsnotify.Remove:
+					if s.watching[event.Name] {
+						delete(s.watching, event.Name)
+					}
 				}
 			}
 		}()
