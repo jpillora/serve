@@ -30,6 +30,7 @@ type Server struct {
 	root         string
 	colors       *colors
 	hasIndex     bool
+	served       map[string]bool
 	fallback     *httputil.ReverseProxy
 	fallbackHost string
 	watcher      *fsnotify.Watcher
@@ -42,9 +43,10 @@ func New(c Config) (*Server, error) {
 
 	port := strconv.Itoa(c.Port)
 	s := &Server{
-		c:    c,
-		port: port,
-		addr: c.Host + ":" + port,
+		c:      c,
+		port:   port,
+		addr:   c.Host + ":" + port,
+		served: map[string]bool{},
 	}
 
 	_, err := os.Stat(c.Directory)
@@ -113,7 +115,10 @@ func (s *Server) Start() error {
 		go func() {
 			for {
 				event := <-s.watcher.Events
-				s.lr.Reload(event.Name)
+				switch event.Op {
+				case fsnotify.Create, fsnotify.Rename:
+					s.lr.Reload(event.Name)
+				}
 			}
 		}()
 	}
@@ -289,6 +294,14 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
+	modtime := info.ModTime()
+	//first time - dont use cache
+	if !s.served[p] {
+		s.served[p] = true
+		modtime = time.Now()
+	}
+
 	//http.ServeContent handles caching and range requests
-	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
+	http.ServeContent(w, r, info.Name(), modtime, f)
 }
