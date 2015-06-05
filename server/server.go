@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andrew-d/go-termutil"
 	"github.com/jaschaephraim/lrserver"
 	"github.com/jpillora/archive"
 	"github.com/jpillora/sizestr"
@@ -30,6 +31,7 @@ type Server struct {
 	root         string
 	colors       *colors
 	hasIndex     bool
+	interactive  bool
 	served       map[string]bool
 	fallback     *httputil.ReverseProxy
 	fallbackHost string
@@ -43,10 +45,11 @@ func New(c Config) (*Server, error) {
 
 	port := strconv.Itoa(c.Port)
 	s := &Server{
-		c:      c,
-		port:   port,
-		addr:   c.Host + ":" + port,
-		served: map[string]bool{},
+		c:           c,
+		port:        port,
+		addr:        c.Host + ":" + port,
+		served:      map[string]bool{},
+		interactive: termutil.Isatty(os.Stdout.Fd()),
 	}
 
 	_, err := os.Stat(c.Directory)
@@ -54,10 +57,10 @@ func New(c Config) (*Server, error) {
 		return nil, fmt.Errorf("Missing directory: %s", c.Directory)
 	}
 
-	if c.NoColor {
-		s.colors = &colors{}
-	} else {
+	if s.interactive {
 		s.colors = defaultColors
+	} else {
+		s.colors = &colors{} //no colors
 	}
 
 	if c.PushState {
@@ -160,7 +163,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 				ip = h
 			}
 			cc := ""
-			if !s.c.NoColor {
+			if s.interactive {
 				cc = colorcode(sw.Code)
 			}
 			logTemplate.Execute(os.Stdout, &struct {

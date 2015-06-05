@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -22,19 +23,13 @@ type listDir struct {
 
 type listFile struct {
 	Path, Name string
+	Accessible bool
 	IsDir      bool
 	Size       int64
 	Mtime      time.Time
 }
 
 func (s *Server) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
-
-	infos, err := ioutil.ReadDir(dir)
-	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
-		return
-	}
 
 	path, _ := filepath.Rel(s.c.Directory, dir)
 	parent := ""
@@ -49,27 +44,47 @@ func (s *Server) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 		Files:   []listFile{},
 	}
 
-	for _, f := range infos {
-		n := f.Name()
+	//readnames and stat separately so a single failed
+	//stat doesn't cause the directory listing to fail
+	d, err := os.Open(dir)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Cannot open directory: %s", err)
+		return
+	}
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Cannot list directory: %s", err)
+		return
+	}
+
+	for _, n := range names {
 		if n == ".DS_Store" {
 			continue //Nope.
 		}
-		var size int64
-		if f.IsDir() {
-			n += "/"
-			list.NumDirs++
-		} else {
-			list.NumFiles++
-			size = f.Size()
-			list.TotalSize += size
+		lf := listFile{
+			Name: n,
+			Path: "/" + filepath.Join(path, n),
 		}
-		list.Files = append(list.Files, listFile{
-			Name:  n,
-			Path:  "/" + filepath.Join(path, n),
-			IsDir: f.IsDir(),
-			Size:  size,
-			Mtime: f.ModTime(),
-		})
+		//attempt to stat
+		if f, err := os.Stat(filepath.Join(dir, n)); err == nil {
+			lf.Accessible = true
+			var size int64
+			if f.IsDir() {
+				n += "/"
+				list.NumDirs++
+			} else {
+				list.NumFiles++
+				size = f.Size()
+				list.TotalSize += size
+			}
+			lf.IsDir = f.IsDir()
+			lf.Size = size
+			lf.Mtime = f.ModTime()
+		}
+
+		list.Files = append(list.Files, lf)
 	}
 
 	accepts := strings.Split(r.Header.Get("Accept"), ",")
@@ -163,10 +178,14 @@ var dirlistHtml = `
 			</tr>{{end}}
 			{{range .Files}}<tr class="file item">
 				<td class="name">
-					<a href="{{ .Path }}{{if .IsDir}}/{{end}}">{{ .Name }}</a>
+					{{if .Accessible}}
+						<a href="{{ .Path }}{{if .IsDir}}/{{end}}">{{ .Name }}</a>
+					{{else}}
+						{{ .Name }}
+					{{end}}
 				</td>
 				<td class="size" alt="{{ .Size }} bytes">
-					{{if .IsDir}}-{{else}}{{ tosize .Size }}{{end}}
+					{{if .IsDir}}-{{else if not .Accessible}}-{{else}}{{ tosize .Size }}{{end}}
 				</td>
 			</tr>{{end}}
 			{{if .NumFiles}}<tr class="files">

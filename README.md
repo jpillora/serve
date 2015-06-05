@@ -9,11 +9,11 @@ A basic HTTP file server in Go
 
 * Fast
 * Single binary
-* Colourful logs with modifiable timestamps and response times
+* Logs with modifiable timestamps and response times (colorized when running in a terminal)
 * Directory listing supporting multiple content types (`html`,`json` and `xml`) via the `Accept` header
 * Directory downloads via on-demand `zip` and `tar` [archive](https://github.com/jpillora/archive)s
 * Optional PushState (HTML5 History API) mode (missing directories returns the root)
-* LiveReload (combines with [this Chrome extension](https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei?hl=en))
+* LiveReload for automatic browser refresh (combines with [this Chrome extension](https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei?hl=en))
 * Fallback proxy (missing requests defer to another server)
 
 ### Install
@@ -44,20 +44,19 @@ serve --help
   Options:
   --host, -h        Host interface (default 0.0.0.0)
   --port, -p        Listening port (default 3000)
-  --livereload, -l  Enable LiveReload, a websocket server, which triggers 
-                    page a refresh after each file change
-  --pushstate       Enable PushState mode, causes missing directory paths 
-                    will return the root index.html file, instead of returning 
-                    a 404. This allows correct use of the HTML5 History API
+  --livereload, -l  Enable LiveReload, a websocket server which triggers 
+                    browser refresh after each file change
+  --pushstate, -s   Enable PushState mode, causes missing directory paths 
+                    to return the root index.html file, instead of a 404. 
+                    This allows correct use of the HTML5 History API.
   --noindex, -n     Disable automatic loading of index.html
-  --noslash         Disables automatic slash insertion when loading an 
+  --noslash         Disable automatic slash insertion when loading an 
                     index.html or directory
   --nolist          Disable directory listing
   --noarchive       Disable directory archiving (download directories by 
                     appending .zip .tar .tar.gz, archives are streamed 
                     without buffering)
   --quiet, -q       Disable all output
-  --nocolor         Disable color in output
   --timefmt, -t     Set timestamp output format (default [2006-01-02 
                     15:04:05.000])
   --open, -o        On server startup, open the root in the default browser 
@@ -74,6 +73,7 @@ serve --help
   Read more:
     https://github.com/jpillora/serve
   
+
 ```
 </tmpl>
 
