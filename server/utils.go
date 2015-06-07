@@ -51,7 +51,7 @@ type colors struct {
 }
 
 var defaultColors = &colors{
-	string(ansi.Set(ansi.Black)), string(ansi.Set(ansi.Cyan)), string(ansi.Set(ansi.Yellow)), string(ansi.Set(ansi.Yellow)), string(ansi.Set(ansi.Yellow)),
+	string(ansi.Set(ansi.Black)), string(ansi.Set(ansi.Cyan)), string(ansi.Set(ansi.Yellow)), string(ansi.Set(ansi.Yellow)), string(ansi.Set(ansi.Reset)),
 }
 
 func colorcode(status int) string {
