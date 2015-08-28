@@ -1,4 +1,4 @@
-package server
+package handler
 
 import (
 	"bytes"
@@ -11,7 +11,24 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/jpillora/sizestr"
 )
+
+func init() {
+	t := template.New("dirlist")
+	t = t.Funcs(template.FuncMap{
+		"tosize": sizestr.ToString,
+		"split":  strings.Split,
+		"concat": func(a, b string) string { return a + b },
+	})
+	var err error
+	dirlistHtmlTempl, err = t.Parse(dirlistHtml)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
 
 type listDir struct {
 	Path, Parent      string
@@ -29,7 +46,7 @@ type listFile struct {
 	Mtime      time.Time
 }
 
-func (s *Server) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
+func (s *Handler) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 
 	path, _ := filepath.Rel(s.c.Directory, dir)
 	parent := ""

@@ -1,37 +1,29 @@
-package server
+package handler
 
 import (
 	"fmt"
 	"io/ioutil"
 	"log"
 	"mime"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/andrew-d/go-termutil"
 	"github.com/jaschaephraim/lrserver"
 	"github.com/jpillora/archive"
-	"github.com/jpillora/sizestr"
+	"github.com/jpillora/requestlog"
 	"gopkg.in/fsnotify.v1"
 )
 
-//Server is custom file server
-type Server struct {
+//Handler is custom file server
+type Handler struct {
 	c            Config
-	addr         string
-	port         string
 	root         string
-	colors       *colors
 	hasIndex     bool
-	interactive  bool
 	served       map[string]bool
 	fallback     *httputil.ReverseProxy
 	fallbackHost string
@@ -40,27 +32,19 @@ type Server struct {
 	lr           *lrserver.Server
 }
 
+func Directory(dir string) (http.Handler, error) {
+	return New(Config{Directory: dir})
+}
+
 //NewServer creates a new Server
-func New(c Config) (*Server, error) {
-
-	port := strconv.Itoa(c.Port)
-	s := &Server{
-		c:           c,
-		port:        port,
-		addr:        c.Host + ":" + port,
-		served:      map[string]bool{},
-		interactive: termutil.Isatty(os.Stdout.Fd()),
+func New(c Config) (http.Handler, error) {
+	s := &Handler{
+		c:      c,
+		served: map[string]bool{},
 	}
-
 	_, err := os.Stat(c.Directory)
 	if c.Directory == "" || err != nil {
 		return nil, fmt.Errorf("Missing directory: %s", c.Directory)
-	}
-
-	if s.interactive {
-		s.colors = defaultColors
-	} else {
-		s.colors = &colors{} //no colors
 	}
 
 	if c.PushState {
@@ -95,19 +79,6 @@ func New(c Config) (*Server, error) {
 		}
 	}
 
-	return s, nil
-}
-
-func (s *Server) Start() error {
-
-	if s.c.Open {
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-			cmd := exec.Command("open", "http://localhost:"+s.port)
-			cmd.Run()
-		}()
-	}
-
 	if s.c.LiveReload {
 		go func() {
 			if err := s.lr.ListenAndServe(); err != nil {
@@ -129,56 +100,16 @@ func (s *Server) Start() error {
 		}()
 	}
 
-	h := http.Handler(http.HandlerFunc(s.serve))
-
+	h := http.Handler(s)
 	//logging is enabled
-	if !s.c.Quiet {
-		introTemplate.Execute(os.Stdout, &struct {
-			*colors
-			Dir, Port string
-		}{
-			s.colors,
-			s.c.Directory, s.port,
-		})
+	if !c.Quiet {
+		h = requestlog.Wrap(h)
 	}
 	//listen
-	return http.ListenAndServe(s.addr, h)
+	return h, nil
 }
 
-func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
-
-	//when logs are enabled, swap out response writer with
-	//inspectable version
-	if !s.c.Quiet {
-		sw := &ServeWriter{w: w}
-		w = sw
-		//track timing
-		t0 := time.Now()
-		defer func() {
-			t := time.Now().Sub(t0)
-			//show ip if external
-			ip := ""
-			h, _, _ := net.SplitHostPort(r.RemoteAddr)
-			if h != "127.0.0.1" && h != "::1" {
-				ip = h
-			}
-			cc := ""
-			if s.interactive {
-				cc = colorcode(sw.Code)
-			}
-			logTemplate.Execute(os.Stdout, &struct {
-				*colors
-				Timestamp, Method, Path, CodeColor string
-				Code                               int
-				Duration, Size, IP                 string
-			}{
-				s.colors,
-				t0.Format(s.c.TimeFmt), r.Method, r.URL.Path, cc,
-				sw.Code,
-				fmtduration(t), sizestr.ToString(sw.Size), ip,
-			})
-		}()
-	}
+func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.Path
 	//shorthand
