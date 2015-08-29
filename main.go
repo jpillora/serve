@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jpillora/ansi"
 	"github.com/jpillora/opts"
+	"github.com/jpillora/requestlog"
 	"github.com/jpillora/serve/handler"
 )
 
@@ -30,7 +30,6 @@ func main() {
 		Port: 3000,
 		Config: handler.Config{
 			Directory: ".",
-			TimeFmt:   "[2006-01-02 15:04:05.000]",
 		},
 	}
 
@@ -58,11 +57,11 @@ func main() {
 	}
 
 	fmt.Printf("%sserving %s%s %son port %s%d%s\n",
-		ansi.BlackBytes,
-		ansi.CyanBytes, c.Config.Directory,
-		ansi.BlackBytes,
-		ansi.CyanBytes, c.Port,
-		ansi.ResetBytes,
+		requestlog.DefaultOptions.Colors.Grey,
+		requestlog.DefaultOptions.Colors.Cyan, c.Config.Directory,
+		requestlog.DefaultOptions.Colors.Grey,
+		requestlog.DefaultOptions.Colors.Cyan, c.Port,
+		requestlog.DefaultOptions.Colors.Reset,
 	)
 
 	log.Fatal(http.ListenAndServe(":"+port, h))

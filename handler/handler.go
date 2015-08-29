@@ -103,7 +103,7 @@ func New(c Config) (http.Handler, error) {
 	h := http.Handler(s)
 	//logging is enabled
 	if !c.Quiet {
-		h = requestlog.Wrap(h)
+		h = requestlog.WrapWith(h, requestlog.Options{TimeFormat: c.TimeFmt})
 	}
 	//listen
 	return h, nil
