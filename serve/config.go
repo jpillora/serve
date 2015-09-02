@@ -1,4 +1,4 @@
-package handler
+package serve
 
 //Config is a handler configuration
 type Config struct {

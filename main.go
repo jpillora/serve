@@ -10,16 +10,16 @@ import (
 
 	"github.com/jpillora/opts"
 	"github.com/jpillora/requestlog"
-	"github.com/jpillora/serve/handler"
+	"github.com/jpillora/serve/serve"
 )
 
 var VERSION string = "0.0.0"
 
 type Config struct {
-	Host           string `help:"Host interface"`
-	Port           int    `help:"Listening port"`
-	Open           bool   `help:"On server startup, open the root in the default browser (uses the 'open' command)"`
-	handler.Config `type:"embedded"`
+	Host         string `help:"Host interface"`
+	Port         int    `help:"Listening port"`
+	Open         bool   `help:"On server startup, open the root in the default browser (uses the 'open' command)"`
+	serve.Config `type:"embedded"`
 }
 
 func main() {
@@ -28,7 +28,7 @@ func main() {
 	c := Config{
 		Host: "0.0.0.0",
 		Port: 3000,
-		Config: handler.Config{
+		Config: serve.Config{
 			Directory: ".",
 		},
 	}
@@ -41,7 +41,7 @@ func main() {
 		Parse()
 
 	//ready!
-	h, err := handler.New(c.Config)
+	h, err := serve.NewHandler(c.Config)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package handler
+package serve
 
 import (
 	"fmt"
@@ -32,12 +32,8 @@ type Handler struct {
 	lr           *lrserver.Server
 }
 
-func Directory(dir string) (http.Handler, error) {
-	return New(Config{Directory: dir})
-}
-
 //NewServer creates a new Server
-func New(c Config) (http.Handler, error) {
+func NewHandler(c Config) (http.Handler, error) {
 	s := &Handler{
 		c:      c,
 		served: map[string]bool{},
