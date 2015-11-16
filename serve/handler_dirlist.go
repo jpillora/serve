@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"sort"
 
 	"github.com/jpillora/sizestr"
 )
@@ -45,6 +46,12 @@ type listFile struct {
 	Size       int64
 	Mtime      time.Time
 }
+
+type byName []listFile
+
+func (a byName) Len() int           { return len(a) }
+func (a byName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
 func (s *Handler) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 
@@ -103,6 +110,8 @@ func (s *Handler) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 
 		list.Files = append(list.Files, lf)
 	}
+	
+	sort.Sort(byName(list.Files))
 
 	accepts := strings.Split(r.Header.Get("Accept"), ",")
 	buff := &bytes.Buffer{}
