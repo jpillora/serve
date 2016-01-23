@@ -3,6 +3,7 @@ package serve
 //Config is a handler configuration
 type Config struct {
 	Directory  string `type:"arg" help:"[directory] from which files will be served"`
+	Auth       string `help:"Enable HTTP basic auth with the chosen username and password (must be in the form 'user:pass')"`
 	LiveReload bool   `help:"Enable LiveReload, a websocket server which triggers browser refresh after each file change"`
 	PushState  bool   `help:"Enable PushState mode, causes missing directory paths to return the root index.html file, instead of a 404. Allows for sane usage of the HTML5 History API." short:"s"`
 	NoIndex    bool   `help:"Disable automatic loading of index.html"`

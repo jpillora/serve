@@ -15,6 +15,7 @@ import (
 
 	"github.com/jaschaephraim/lrserver"
 	"github.com/jpillora/archive"
+	"github.com/jpillora/cookieauth"
 	"github.com/jpillora/requestlog"
 	"gopkg.in/fsnotify.v1"
 )
@@ -97,6 +98,14 @@ func NewHandler(c Config) (http.Handler, error) {
 	}
 
 	h := http.Handler(s)
+	//basic auth
+	if c.Auth != "" {
+		auth := strings.SplitN(c.Auth, ":", 2)
+		if len(auth) < 2 {
+			return nil, fmt.Errorf("should be in the form 'user:pass'")
+		}
+		h = cookieauth.Wrap(h, auth[0], auth[1])
+	}
 	//logging is enabled
 	if !c.Quiet {
 		h = requestlog.WrapWith(h, requestlog.Options{TimeFormat: c.TimeFmt})
