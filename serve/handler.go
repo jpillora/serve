@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jaschaephraim/lrserver"
@@ -25,9 +26,11 @@ type Handler struct {
 	c            Config
 	root         string
 	hasIndex     bool
+	servedMut    sync.Mutex
 	served       map[string]bool
 	fallback     *httputil.ReverseProxy
 	fallbackHost string
+	watcherMut   sync.Mutex
 	watcher      *fsnotify.Watcher
 	watching     map[string]bool
 	lr           *lrserver.Server
@@ -230,19 +233,23 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//add all served file's parent dirs to the watcher
 	if s.c.LiveReload {
 		dir, _ := filepath.Split(p)
+		s.watcherMut.Lock()
 		if _, watching := s.watching[dir]; !watching {
 			if err := s.watcher.Add(dir); err == nil {
 				s.watching[dir] = true
 			}
 		}
+		s.watcherMut.Unlock()
 	}
 
 	modtime := info.ModTime()
 	//first time - dont use cache
+	s.servedMut.Lock()
 	if !s.served[p] {
 		s.served[p] = true
 		modtime = time.Now()
 	}
+	s.servedMut.Unlock()
 
 	//http.ServeContent handles caching and range requests
 	http.ServeContent(w, r, info.Name(), modtime, f)

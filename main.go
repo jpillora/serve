@@ -50,8 +50,12 @@ func main() {
 
 	if c.Open {
 		go func() {
+			host := c.Host
+			if host == "0.0.0.0" {
+				host = "localhost"
+			}
 			time.Sleep(500 * time.Millisecond)
-			cmd := exec.Command("open", "http://localhost:"+port)
+			cmd := exec.Command("open", "http://"+host+":"+port)
 			cmd.Run()
 		}()
 	}
@@ -64,5 +68,5 @@ func main() {
 		requestlog.DefaultOptions.Colors.Reset,
 	)
 
-	log.Fatal(http.ListenAndServe(":"+port, h))
+	log.Fatal(http.ListenAndServe(c.Host+":"+port, h))
 }
