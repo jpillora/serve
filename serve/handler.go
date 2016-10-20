@@ -68,7 +68,7 @@ func NewHandler(c Config) (http.Handler, error) {
 	}
 
 	if c.LiveReload {
-		s.lr, _ = lrserver.New("serve-lr", lrserver.DefaultPort)
+		s.lr = lrserver.New("serve-lr", lrserver.DefaultPort)
 		discard := log.New(ioutil.Discard, "", 0)
 		s.lr.SetErrorLog(discard)
 		s.lr.SetStatusLog(discard)
