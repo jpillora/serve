@@ -1,3 +1,5 @@
+//go:generate go-bindata -pkg static -ignore .../.DS_Store -ignore .../*.go -o static/files.go static/...
+
 package serve
 
 import (
@@ -138,6 +140,16 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		isdir = info.IsDir()
 	}
 
+	//silently swap webm for mkv
+	// if missing && !isdir && strings.HasSuffix(p, ".webm") && strings.Contains(r.UserAgent(), "Chrome") {
+	// 	log.Println(p)
+	// 	p = strings.TrimSuffix(p, ".webm") + ".mkv"
+	// 	if _, err := os.Stat(p); err == nil {
+	// 		missing = false
+	// 		w.Header().Set("Content-Type", "video/webm")
+	// 	}
+	// }
+
 	if s.c.PushState && missing && filepath.Ext(p) == "" {
 		//missing and pushstate and no ext
 		p = s.root //change to request for the root
@@ -245,12 +257,11 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	modtime := info.ModTime()
 	//first time - dont use cache
 	s.servedMut.Lock()
-	if !s.served[p] {
+	if s.c.NoCache || !s.served[p] {
 		s.served[p] = true
 		modtime = time.Now()
 	}
 	s.servedMut.Unlock()
-
 	//http.ServeContent handles caching and range requests
 	http.ServeContent(w, r, info.Name(), modtime, f)
 }

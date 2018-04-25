@@ -10,6 +10,7 @@ type Config struct {
 	NoSlash    bool   `help:"Disable automatic slash insertion when loading an index.html or directory"`
 	NoList     bool   `help:"Disable directory listing"`
 	NoArchive  bool   `help:"Disable directory archiving (download directories by appending .zip .tar .tar.gz - archives are streamed without buffering)"`
+	NoCache    bool   `help:"Disable cache (file modified time is always now)"`
 	Quiet      bool   `help:"Disable all output"`
 	TimeFmt    string `help:"Set timestamp output format"`
 	Fallback   string `help:"Requests that yeild a 404, will instead proxy through to the provided path (swaps in the appropriate Host header)"`

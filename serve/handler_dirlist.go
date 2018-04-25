@@ -9,12 +9,16 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
-	"sort"
+
+	"github.com/jpillora/serve/serve/static"
 
 	"github.com/jpillora/sizestr"
 )
+
+var dirlistHtmlTempl *template.Template
 
 func init() {
 	t := template.New("dirlist")
@@ -23,8 +27,9 @@ func init() {
 		"split":  strings.Split,
 		"concat": func(a, b string) string { return a + b },
 	})
+	listHTML := static.MustAsset("static/list.html")
 	var err error
-	dirlistHtmlTempl, err = t.Parse(dirlistHtml)
+	dirlistHtmlTempl, err = t.Parse(string(listHTML))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -110,7 +115,7 @@ func (s *Handler) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 
 		list.Files = append(list.Files, lf)
 	}
-	
+
 	sort.Sort(byName(list.Files))
 
 	accepts := strings.Split(r.Header.Get("Accept"), ",")
@@ -148,98 +153,3 @@ func (s *Handler) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 	w.WriteHeader(200)
 	w.Write(buff.Bytes())
 }
-
-var dirlistHtmlTempl *template.Template
-
-var dirlistHtml = `
-<html>
-	<head>
-		<title>{{ .Path }}</title>
-		<style>
-			html,body {
-				height:100%;
-				width:100%;
-				font-family: Courier, monospace;
-			}
-			a {
-				text-decoration: none;
-			}
-			table {
-				margin: 5%;
-			}
-			.path {
-				text-style: underline;
-			}
-			.name {
-				text-align: right;
-				padding-right: 30px;
-			}
-			.name a {
-				word-wrap:break-word;
-				display: inline-block;
-				width: 300px;
-			}
-			.size {
-				text-align: left;
-			}
-			.archive {
-				font-size: 0.8em;
-			}
-
-		</style>
-	</head>
-	<body>
-		<table>
-			<tr>
-				<th class="name">Name</th>
-				<th class="size">Size</th>
-			</tr>
-			<tr class="file item">
-				<td class="name"><a href="/{{ .Path }}">.</a></td>
-				<td class="size">-</td>
-			</tr>
-			{{if ne .Parent ""}}<tr class="file item">
-				<td class="name"><a href="{{ .Parent }}">..</a></td>
-				<td class="size">-</td>
-			</tr>{{end}}
-			{{range .Files}}<tr class="file item">
-				<td class="name">
-					{{if .Accessible}}
-						<a href="{{ .Path }}{{if .IsDir}}/{{end}}">{{ .Name }}</a>
-					{{else}}
-						{{ .Name }}
-					{{end}}
-				</td>
-				<td class="size" alt="{{ .Size }} bytes">
-					{{if .IsDir}}-{{else if not .Accessible}}-{{else}}{{ tosize .Size }}{{end}}
-				</td>
-			</tr>{{end}}
-			{{if .NumFiles}}<tr class="files">
-				<th class="name">
-					{{.NumFiles}} file{{if ne .NumFiles 1}}s{{end}}
-				</th>
-				<th class="size" alt="{{ .TotalSize }} bytes">
-					{{ tosize .TotalSize }}
-				</th>
-			</tr>{{end}}
-			{{if .NumDirs}}<tr class="files">
-				<th class="name">
-					{{.NumDirs}} dir{{if ne .NumDirs 1}}s{{end}}
-				</th>
-				<th>
-				</th>
-			</tr>{{end}}
-			{{if .Archive}}<tr class="archive">
-				<th class="name">
-					download all as
-				</th>
-				<th>
-					<a href="/{{ .Path }}.zip">zip</a>,
-					<a href="/{{ .Path }}.tar">tar</a>,
-					<a href="/{{ .Path }}.tar.gz">tar.gz</a>
-				</th>
-			</tr>{{end}}
-		</table>
-	</body>
-</html>
-`
