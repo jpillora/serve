@@ -13,9 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jpillora/serve/serve/static"
-
 	"github.com/jpillora/sizestr"
+	"github.com/jpillora/serve/serve/static"
 )
 
 var dirlistHtmlTempl *template.Template
@@ -52,11 +51,28 @@ type listFile struct {
 	Mtime      time.Time
 }
 
-type byName []listFile
+type byName struct {
+	files []listFile
+	config Config
+}
 
-func (a byName) Len() int           { return len(a) }
-func (a byName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byName) Less(i, j int) bool { return a[i].Name < a[j].Name }
+func (a byName) Len() int           { return len(a.files) }
+func (a byName) Swap(i, j int)      { a.files[i], a.files[j] = a.files[j], a.files[i] }
+func (a byName) Less(i, j int) bool {
+	var file1 = a.files[i].Name
+	var file2 = a.files[j].Name
+
+	if a.config.CaseInsensitive {
+		file1 = strings.ToLower(file1)
+		file2 = strings.ToLower(file2)
+	}
+
+	if a.config.ListDirectoriesFirst && a.files[i].IsDir != a.files[j].IsDir {
+		return a.files[i].IsDir
+	}
+
+	return a.files[i].Name < a.files[j].Name
+}
 
 func (s *Handler) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 
@@ -116,7 +132,10 @@ func (s *Handler) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 		list.Files = append(list.Files, lf)
 	}
 
-	sort.Sort(byName(list.Files))
+	sort.Sort(byName {
+		files: list.Files,
+		config: s.c,
+	})
 
 	accepts := strings.Split(r.Header.Get("Accept"), ",")
 	buff := &bytes.Buffer{}
