@@ -25,6 +25,7 @@ type Config struct {
 }
 
 func main() {
+
 	//defaults
 	c := Config{
 		Host: "0.0.0.0",
