@@ -14,4 +14,5 @@ type Config struct {
 	Quiet      bool   `help:"Disable all output"`
 	TimeFmt    string `help:"Set timestamp output format"`
 	Fallback   string `help:"Requests that yeild a 404, will instead proxy through to the provided path (swaps in the appropriate Host header)"`
+	Realm      string `help:"Set the realm for the authentication response"`
 }
