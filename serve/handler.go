@@ -109,7 +109,7 @@ func NewHandler(c Config) (http.Handler, error) {
 		if len(auth) < 2 {
 			return nil, fmt.Errorf("should be in the form 'user:pass'")
 		}
-		h = cookieauth.Wrap(h, auth[0], auth[1])
+		h = cookieauth.Wrap(h, auth[0], auth[1], c.Realm)
 	}
 	//logging is enabled
 	if !c.Quiet {
