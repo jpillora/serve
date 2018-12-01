@@ -56,7 +56,18 @@ type byName []listFile
 
 func (a byName) Len() int           { return len(a) }
 func (a byName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byName) Less(i, j int) bool { return a[i].Name < a[j].Name }
+func (a byName) Less(i, j int) bool {
+	// make sorting case insensitive
+	var file1 = strings.ToLower(a[i].Name)
+	var file2 = strings.ToLower(a[j].Name)
+
+	// list directories first
+	if a[i].IsDir != a[j].IsDir {
+		return a[i].IsDir
+	}
+
+	return file1 < file2
+}
 
 func (s *Handler) dirlist(w http.ResponseWriter, r *http.Request, dir string) {
 
