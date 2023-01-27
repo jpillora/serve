@@ -6,11 +6,12 @@ ADD . /src
 WORKDIR /src
 RUN go mod download
 RUN go build \
-    -ldflags "-X main.version=$(git describe --abbrev=0 --tags)" \
+    -tags timetzdata \
+    -ldflags "-extldflags -static -X main.version=$(git describe --abbrev=0 --tags)" \
     -o serve
 # run stage
-FROM gcr.io/distroless/static-debian11
+FROM scratch
+COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 WORKDIR /app
-CMD ["/app"]
 COPY --from=build /src/serve /app/serve
 ENTRYPOINT ["/app/serve"]
