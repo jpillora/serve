@@ -60,7 +60,7 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
+          username: jpillora
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Docker meta
         id: docker_meta
