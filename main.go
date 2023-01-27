@@ -13,7 +13,7 @@ import (
 	"github.com/jpillora/serve/serve"
 )
 
-var VERSION string = "0.0.0"
+var version string = "0.0.0"
 
 type Config struct {
 	Host         string `help:"Host interface"`
@@ -38,7 +38,7 @@ func main() {
 	//parse
 	opts.New(&c).
 		Name("serve").
-		Version(VERSION).
+		Version(version).
 		Repo("github.com/jpillora/serve").
 		Parse()
 
