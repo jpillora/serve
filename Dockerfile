@@ -1,17 +1,16 @@
 # build stage
-FROM golang:1.19 as build
-LABEL maintainer="dev@jpillora.com"
-ENV CGO_ENABLED 0
+FROM golang:alpine AS build-env
+RUN apk update && apk add git
 ADD . /src
 WORKDIR /src
-RUN go mod download
+ENV CGO_ENABLED 0
 RUN go build \
-    -tags timetzdata \
-    -ldflags "-extldflags -static -X main.version=$(git describe --abbrev=0 --tags)" \
+    -ldflags "-X main.version=$(git describe --abbrev=0 --tags)" \
     -o serve
 # run stage
-FROM scratch
-COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+FROM alpine
+LABEL maintainer="dev@jpillora.com"
+RUN apk update && apk add --no-cache ca-certificates
 WORKDIR /app
-COPY --from=build /src/serve /app/serve
+COPY --from=build-env /src/serve /app/serve
 ENTRYPOINT ["/app/serve"]
