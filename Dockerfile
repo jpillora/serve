@@ -1,5 +1,5 @@
 # build stage
-FROM golang:alpine AS build-env
+FROM golang:alpine AS build
 RUN apk update && apk add git
 ADD . /src
 WORKDIR /src
@@ -8,9 +8,9 @@ RUN go build \
     -ldflags "-X main.version=$(git describe --abbrev=0 --tags)" \
     -o /tmp/bin
 # run stage
-FROM alpine
+FROM scratch
 LABEL maintainer="dev@jpillora.com"
-RUN apk update && apk add --no-cache ca-certificates
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 WORKDIR /app
-COPY --from=build-env /tmp/bin /app/bin
+COPY --from=build /tmp/bin /app/bin
 ENTRYPOINT ["/app/bin"]
